@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Duck in your Pocket 🦆</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap');
+
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background-color: #E0F7FA;
+            overflow: hidden; /* Prevent scrolling from accumulated ducks */
+            touch-action: manipulation; /* Improve touch response */
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .duck-sticker {
+            position: absolute;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1), 0 10px 15px rgba(0,0,0,0.1);
+            border: 4px solid white;
+            border-radius: 12px;
+            background: white;
+            user-select: none;
+            will-change: transform;
+            animation: popIn 0.4s ease-out forwards;
+            max-width: 120px;
+            max-height: 120px;
+            object-fit: cover;
+            pointer-events: auto;
+        }
+
+        @media (min-width: 768px) {
+            .duck-sticker {
+                max-width: 180px;
+                max-height: 180px;
+            }
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0) rotate(0deg); opacity: 0; }
+            70% { transform: scale(1.1) rotate(var(--r)); opacity: 1; }
+            100% { transform: scale(1) rotate(var(--r)); opacity: 1; }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .btn-press {
+            transition: transform 0.1s;
+        }
+        .btn-press:active {
+            transform: scale(0.95);
+        }
+
+        /* Confetti */
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f00;
+            animation: fall linear forwards;
+            z-index: 40;
+            pointer-events: none;
+        }
+        @keyframes fall {
+            to { transform: translateY(100vh) rotate(720deg); }
+        }
+
+        /* UI Glassmorphism */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body class="h-screen w-screen relative overflow-hidden selection:bg-transparent">
+
+    <!-- Background Decorations -->
+    <div class="absolute inset-0 pointer-events-none opacity-20 z-0">
+        <div class="absolute top-10 left-10 text-blue-300 text-9xl transform -rotate-12">💧</div>
+        <div class="absolute bottom-20 right-20 text-blue-300 text-9xl transform rotate-12">💧</div>
+        <div class="absolute top-1/2 left-1/3 text-blue-200 text-6xl transform rotate-45">○</div>
+        <div class="absolute top-1/4 right-1/4 text-blue-200 text-8xl transform -rotate-12">○</div>
+    </div>
+
+    <!-- Game Area (Ducks go here) -->
+    <div id="duck-container" class="absolute inset-0 overflow-hidden z-10 pointer-events-none"></div>
+
+    <!-- Top Bar -->
+    <div class="absolute top-0 left-0 right-0 p-4 z-50 flex justify-between items-start pointer-events-none">
+        <div class="glass-panel rounded-2xl p-3 pointer-events-auto shadow-lg animate-[float_3s_ease-in-out_infinite]">
+            <h1 class="text-xl md:text-2xl font-bold text-sky-700 leading-none">Duck in your Pocket 🦆</h1>
+            <p id="rank-text" class="text-xs text-sky-500 font-semibold mt-1">Rank: Duck Novice</p>
+        </div>
+        
+        <div class="flex gap-2 pointer-events-auto">
+            <button id="mute-btn" class="glass-panel p-3 rounded-full shadow-md hover:bg-white/80 transition btn-press text-sky-600" aria-label="Toggle Sound">
+                <svg id="icon-sound-on" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="hidden">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                </svg>
+                <svg id="icon-sound-off" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                </svg>
+            </button>
+            <div class="glass-panel p-3 rounded-full shadow-md min-w-[60px] text-center flex flex-col justify-center">
+                <span class="text-xs text-sky-400 font-bold uppercase">Count</span>
+                <span id="counter" class="text-xl font-black text-sky-600 leading-none">0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Bar -->
+    <div class="absolute bottom-0 left-0 right-0 p-6 pb-8 z-50 flex flex-col items-center justify-end pointer-events-none bg-gradient-to-t from-sky-100/80 to-transparent h-48">
+        <div class="flex gap-4 pointer-events-auto items-center">
+            <button id="clear-btn" class="bg-rose-100 hover:bg-rose-200 text-rose-600 p-3 rounded-full shadow-lg btn-press transition" title="Clear Ducks">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            </button>
+
+            <button id="duck-btn" class="bg-yellow-400 hover:bg-yellow-300 text-yellow-900 font-bold text-xl md:text-2xl py-4 px-10 rounded-3xl shadow-[0_6px_0_rgb(202,138,4)] active:shadow-[0_2px_0_rgb(202,138,4)] active:translate-y-1 transition-all border-4 border-yellow-500 flex items-center gap-2 group">
+                <span>SUMMON DUCK</span>
+                <span class="text-3xl group-hover:animate-bounce">🦆</span>
+            </button>
+        </div>
+        <p class="text-sky-600/60 text-xs mt-3 font-semibold">Tap screen to quack • Click ducks to remove</p>
+    </div>
+
+    <script>
+        // --- State ---
+        let duckCount = 0;
+        let soundEnabled = false;
+        let audioCtx = null;
+
+        // --- Assets: REAL IMAGES ONLY ---
+        const duckImages = [
+            "https://images.unsplash.com/photo-1555852095-64e7428df0c5?auto=format&fit=crop&w=400&q=80",
+            "https://images.unsplash.com/photo-1516467508483-a7212056b165?auto=format&fit=crop&w=400&q=80",
+            "https://images.unsplash.com/photo-1604916926969-1e33e33d72c1?auto=format&fit=crop&w=400&q=80",
+            "https://images.unsplash.com/photo-1557855506-3619a44bab73?auto=format&fit=crop&w=400&q=80",
+            "https://images.unsplash.com/photo-1599009434802-ca1dd09895e7?auto=format&fit=crop&w=400&q=80",
+            "https://images.unsplash.com/photo-1612170153139-6f881d97f188?auto=format&fit=crop&w=400&q=80",
+            "https://images.unsplash.com/photo-1550948537-130a1ce83314?auto=format&fit=crop&w=400&q=80",
+            "https://images.unsplash.com/photo-1564246280-49cb7c40bc1e?auto=format&fit=crop&w=400&q=80",
+            "https://images.unsplash.com/photo-1555076882-29703a2f2358?auto=format&fit=crop&w=400&q=80",
+            "https://images.unsplash.com/photo-1517331156700-3c241d2b4d83?auto=format&fit=crop&w=400&q=80",
+            "https://images.unsplash.com/photo-1635347823541-f246c3461d3e?auto=format&fit=crop&w=400&q=80",
+            "https://images.unsplash.com/photo-1560162947-760e76e23139?auto=format&fit=crop&w=400&q=80",
+            "https://images.unsplash.com/photo-1506619216599-9d3e0f050332?auto=format&fit=crop&w=400&q=80",
+            "https://images.unsplash.com/photo-1465153690352-10c1b29577f8?auto=format&fit=crop&w=400&q=80",
+            "https://images.unsplash.com/photo-1601662845882-57187a659e06?auto=format&fit=crop&w=400&q=80"
+        ];
+
+        // SVG Fallback: Only appears if a real image fails to load (no internet/broken link)
+        const createSVGDuck = () => {
+            const colors = ['#FCD34D', '#FFFFFF', '#F87171', '#60A5FA', '#34D399'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            
+            const svg = `
+            <svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <path d="M25,65 Q10,65 10,50 Q10,35 25,35 L40,35 Q55,35 55,50 Q55,65 40,65 Z" fill="${color}" />
+                <circle cx="40" cy="30" r="15" fill="${color}" />
+                <circle cx="45" cy="28" r="2" fill="black" />
+                <path d="M50,30 Q65,25 65,35 Q60,40 50,35" fill="#F97316" />
+                <path d="M30,55 Q15,50 15,40" fill="none" stroke="${color === '#FFFFFF' ? '#EEE' : 'rgba(0,0,0,0.1)'}" stroke-width="2" />
+            </svg>`;
+            return "data:image/svg+xml;base64," + btoa(svg);
+        };
+
+        // --- Audio Synthesis (Quack) ---
+        const initAudio = () => {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        };
+
+        const playQuack = () => {
+            if (!soundEnabled || !audioCtx) return;
+
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+
+            osc.type = 'sawtooth';
+            const startFreq = 300 + Math.random() * 100;
+            osc.frequency.setValueAtTime(startFreq, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(startFreq * 0.6, audioCtx.currentTime + 0.15);
+
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.02);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+            filter.frequency.linearRampToValueAtTime(400, audioCtx.currentTime + 0.2);
+            filter.Q.value = 1;
+
+            osc.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.25);
+        };
+
+        // --- DOM Logic ---
+        const container = document.getElementById('duck-container');
+        const duckBtn = document.getElementById('duck-btn');
+        const counterDisplay = document.getElementById('counter');
+        const rankText = document.getElementById('rank-text');
+        const clearBtn = document.getElementById('clear-btn');
+        const muteBtn = document.getElementById('mute-btn');
+        const iconSoundOn = document.getElementById('icon-sound-on');
+        const iconSoundOff = document.getElementById('icon-sound-off');
+
+        const updateRank = () => {
+            let rank = "Duck Novice";
+            if (duckCount > 10) rank = "Duck Enthusiast";
+            if (duckCount > 25) rank = "Quack Commander";
+            if (duckCount > 50) rank = "Lord of the Wings";
+            if (duckCount > 100) rank = "THE DUCKTATOR";
+            rankText.innerText = `Rank: ${rank}`;
+        };
+
+        const createConfetti = (x, y) => {
+            const colors = ['#FFD700', '#FF69B4', '#00BFFF', '#32CD32'];
+            for (let i = 0; i < 10; i++) {
+                const conf = document.createElement('div');
+                conf.classList.add('confetti');
+                conf.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                conf.style.left = x + 'px';
+                conf.style.top = y + 'px';
+                
+                const vx = (Math.random() - 0.5) * 200;
+                conf.style.transform = `translateX(${vx}px)`;
+                
+                document.body.appendChild(conf);
+                
+                setTimeout(() => conf.remove(), 2000);
+            }
+        };
+
+        const addDuck = (e) => {
+            initAudio();
+            playQuack();
+
+            const duck = document.createElement('img');
+            
+            // ALWAYS try a real image first
+            const imgSrc = duckImages[Math.floor(Math.random() * duckImages.length)];
+            duck.src = imgSrc;
+            duck.className = 'duck-sticker';
+            
+            const padding = 100;
+            const maxX = window.innerWidth - padding;
+            const maxY = window.innerHeight - 200; 
+            const minY = 80; 
+            
+            const x = Math.random() * (maxX - 20) + 10;
+            const y = Math.random() * (maxY - minY) + minY;
+            const r = (Math.random() - 0.5) * 60; 
+
+            duck.style.left = `${x}px`;
+            duck.style.top = `${y}px`;
+            duck.style.setProperty('--r', `${r}deg`);
+
+            duck.onclick = (evt) => {
+                evt.stopPropagation();
+                duck.style.transform = `scale(0) rotate(${r}deg)`;
+                setTimeout(() => duck.remove(), 200);
+                duckCount--;
+                counterDisplay.innerText = duckCount;
+                updateRank();
+                createConfetti(evt.clientX, evt.clientY);
+            };
+            
+            // ONLY use SVG if the internet is down or image breaks
+            duck.onerror = () => {
+                duck.src = createSVGDuck();
+            };
+
+            container.appendChild(duck);
+            
+            duckCount++;
+            counterDisplay.innerText = duckCount;
+            updateRank();
+
+            if(e && e.target) {
+                const rect = duckBtn.getBoundingClientRect();
+                createConfetti(rect.left + rect.width/2, rect.top);
+            }
+        };
+
+        // --- Event Listeners ---
+        duckBtn.addEventListener('click', addDuck);
+
+        clearBtn.addEventListener('click', () => {
+            const ducks = document.querySelectorAll('.duck-sticker');
+            ducks.forEach((d, i) => {
+                setTimeout(() => {
+                    d.style.transform = 'scale(0) rotate(0deg)';
+                    setTimeout(() => d.remove(), 200);
+                }, i * 50);
+            });
+            duckCount = 0;
+            counterDisplay.innerText = 0;
+            updateRank();
+        });
+
+        muteBtn.addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            if (soundEnabled) {
+                initAudio();
+                iconSoundOn.classList.remove('hidden');
+                iconSoundOff.classList.add('hidden');
+                playQuack();
+            } else {
+                iconSoundOn.classList.add('hidden');
+                iconSoundOff.classList.remove('hidden');
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            // If tapping background, play quack
+            if(soundEnabled && (e.target === document.body || e.target === container)) {
+                playQuack();
+            }
+        });
+
+    </script>
+</body>
+</html>
